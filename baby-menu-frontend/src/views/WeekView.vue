@@ -3,7 +3,18 @@ import { ref, computed } from 'vue'
 import { weekDays, recipes } from '../data/recipes.js'
 import DayCard from '../components/DayCard.vue'
 
-const mealTypes = ['全部', '早餐', '午餐', '晚餐']
+const mealTypes = ['早餐', '午餐', '晚餐', '全部']
+const allCards = computed(() => {
+  const cards = []
+  for (const day of weekDays) {
+    const meals = recipes[day]?.meals
+    if (meals) {
+      if (meals.早餐) cards.push({ day, recipe: meals.早餐, mealType: '早餐' })
+      if (meals.午餐) cards.push({ day, recipe: meals.午餐, mealType: '午餐' })
+    }
+  }
+  return cards
+})
 const currentMeal = ref('全部')
 
 function setMeal(meal) {
@@ -55,18 +66,29 @@ const hasMealData = computed(() => {
 
     <!-- 菜品网格 -->
     <main class="max-w-4xl mx-auto px-4 py-4">
-      <!-- 午餐/全部：显示已有数据的卡片 -->
-      <div v-if="currentMeal !== '早餐' && currentMeal !== '晚餐'" class="grid grid-cols-2 gap-3">
+      <!-- 全部：显示所有餐类 -->
+      <div v-if="currentMeal === '全部'" class="grid grid-cols-2 gap-3">
+        <DayCard
+          v-for="card in allCards"
+          :key="`${card.day}-${card.mealType}`"
+          :day="card.day"
+          :recipe="card.recipe"
+          :mealType="card.mealType"
+        />
+      </div>
+
+      <!-- 早餐 / 午餐：按分类显示 -->
+      <div v-else-if="currentMeal !== '晚餐'" class="grid grid-cols-2 gap-3">
         <DayCard
           v-for="day in weekDays"
           :key="day"
           :day="day"
-          :recipe="recipes[day]?.meals?.午餐"
-          mealType="午餐"
+          :recipe="recipes[day]?.meals?.[currentMeal]"
+          :mealType="currentMeal"
         />
       </div>
 
-      <!-- 早餐 / 晚餐：待上线占位 -->
+      <!-- 晚餐：暂无 -->
       <div v-else class="text-center py-20 text-gray-300">
         <div class="text-6xl mb-4">🚧</div>
         <p class="text-lg text-gray-400">{{ currentMeal }}菜品八百里加急上线中...</p>

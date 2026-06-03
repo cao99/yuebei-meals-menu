@@ -11,7 +11,7 @@ defineProps({
 
 <template>
   <router-link
-    :to="recipe ? `/day/${encodeURIComponent(day)}` : ''"
+    :to="recipe ? { path: `/day/${encodeURIComponent(day)}`, query: { meal: mealType } } : ''"
     class="block"
   >
     <div
