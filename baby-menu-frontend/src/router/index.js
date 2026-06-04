@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import WeekView from '../views/WeekView.vue'
 import DayDetail from '../views/DayDetail.vue'
 
@@ -9,14 +9,14 @@ const routes = [
     component: WeekView
   },
   {
-    path: '/day/:day',
+    path: '/day/:day/:meal?',
     name: 'DayDetail',
     component: DayDetail
   }
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes
 })
 

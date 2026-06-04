@@ -8,9 +8,20 @@ const route = useRoute()
 const router = useRouter()
 
 const day = computed(() => decodeURIComponent(route.params.day))
-const mealType = computed(() => route.query.meal || '午餐')
+const mealType = computed(() => decodeURIComponent(route.params.meal || '午餐'))
 const recipe = computed(() => getRecipe(day.value))
 const meal = computed(() => recipe.value?.meals?.[mealType.value])
+
+// 响应式图片：根据 imagePath 生成 small/large × webp/jpg 变体路径
+function variantOf(path, suffix, ext) {
+  if (!path) return ''
+  const dot = path.lastIndexOf('.')
+  const slash = path.lastIndexOf('/')
+  const stem = path.substring(slash + 1, dot)
+  return `${path.substring(0, slash + 1)}${stem}-${suffix}.${ext}`
+}
+const imgLargeWebp = computed(() => variantOf(meal.value?.imagePath, 'large', 'webp'))
+const imgLargeJpg = computed(() => variantOf(meal.value?.imagePath, 'large', 'jpg'))
 
 const currentIndex = computed(() => weekDays.indexOf(day.value))
 const prevDay = computed(() => currentIndex.value > 0 ? weekDays[currentIndex.value - 1] : null)
@@ -29,7 +40,7 @@ function handleReferenceClick(e) {
 }
 
 function navigateTo(targetDay) {
-  router.push({ path: `/day/${encodeURIComponent(targetDay)}`, query: { meal: mealType.value } })
+  router.push(`/day/${encodeURIComponent(targetDay)}/${encodeURIComponent(mealType.value)}`)
 }
 
 function openFullscreen() {
@@ -206,44 +217,54 @@ async function copyToClipboard(text) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white">
-    <!-- 顶部导航 - 美团详情风格 -->
-    <header class="sticky top-0 bg-white z-20 border-b border-gray-100">
-      <div class="max-w-4xl mx-auto px-4 h-12 flex items-center justify-between">
+  <div class="min-h-screen bg-gradient-to-b from-cyan-50 via-blue-50 to-indigo-50">
+    <!-- 顶部导航 - 不 sticky，下滑后不遮挡内容 -->
+    <header class="relative overflow-hidden shadow-md shadow-cyan-200/40">
+      <div class="absolute inset-0" style="background: linear-gradient(to right, #2563eb, #4f46e5, #7e22ce);"></div>
+      <div class="absolute top-2 right-8 w-1 h-1 bg-white rounded-full twinkle-mini"></div>
+      <div class="absolute bottom-2 left-1/3 w-1 h-1 bg-cyan-200 rounded-full twinkle-mini" style="animation-delay:0.5s"></div>
+      <div class="absolute top-3 left-1/4 w-0.5 h-0.5 bg-white rounded-full twinkle-mini" style="animation-delay:1s"></div>
+      <div class="relative max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
         <button
           @click="router.push('/')"
-          class="flex items-center gap-1 text-gray-500 hover:text-orange-500 transition-colors"
+          class="flex items-center gap-1 px-3 py-1.5 hover:bg-white/30 text-white rounded-full transition-colors border border-white/50"
+          style="background-color: rgba(255,255,255,0.18);"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
           </svg>
-          <span class="text-sm">返回</span>
+          <span class="text-xs font-bold">返回</span>
         </button>
-        <h2 class="text-sm font-bold text-gray-800">{{ day }} · {{ mealType }}</h2>
-        <div class="w-14"></div>
+        <h2 class="hero-mini-title text-base font-bold tracking-wide" style="color:#ffffff;">{{ day }} · {{ mealType }}</h2>
+        <div class="px-2 py-1 bg-white rounded-full shadow-md border border-cyan-200">
+          <span class="text-[10px] font-bold text-blue-700">★★★</span>
+        </div>
       </div>
     </header>
 
     <!-- 内容 -->
     <main class="max-w-2xl mx-auto pb-24">
-      <!-- 图片 - 美团大图风格 -->
+      <!-- 图片 - 星球食堂浅色风格 -->
       <div
         v-if="meal?.imagePath"
-        class="w-full aspect-[16/9] bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center overflow-hidden cursor-pointer"
+        class="relative w-full aspect-[16/9] bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden cursor-pointer mt-3 mx-3 rounded-2xl border border-gray-200 shadow-sm"
         @click="openFullscreen"
       >
-        <img
-          v-show="imageLoaded"
-          :src="meal.imagePath"
-          :alt="meal.dishName"
-          class="w-full h-full object-contain"
-          @load="imageLoaded = true"
-          @error="imageError = true"
-        />
-        <div v-if="!imageLoaded && !imageError" class="text-gray-300 text-3xl">
+        <picture class="w-full h-full flex items-center justify-center absolute inset-0 transition-opacity duration-300" :style="{ opacity: imageLoaded && !imageError ? 1 : 0 }">
+          <source :srcset="imgLargeWebp" type="image/webp" />
+          <img
+            :src="imgLargeJpg"
+            :alt="meal.dishName"
+            decoding="async"
+            class="w-full h-full object-contain"
+            @load="imageLoaded = true"
+            @error="imageError = true"
+          />
+        </picture>
+        <div v-if="!imageLoaded && !imageError" class="text-gray-400 text-base z-10">
           加载中...
         </div>
-        <div v-if="imageError" class="text-gray-200 text-6xl">
+        <div v-if="imageError" class="text-gray-300 text-6xl z-10">
           🍽️
         </div>
       </div>
@@ -268,12 +289,15 @@ async function copyToClipboard(text) {
             
             <!-- 图片容器 -->
             <div class="w-full h-full flex items-center justify-center p-4">
-              <img
-                :src="meal?.imagePath"
-                :alt="meal?.dishName"
-                class="max-w-full max-h-full object-contain"
-                @click.stop
-              />
+              <picture @click.stop class="max-w-full max-h-full flex items-center justify-center">
+                <source :srcset="imgLargeWebp" type="image/webp" />
+                <img
+                  :src="imgLargeJpg"
+                  :alt="meal?.dishName"
+                  decoding="async"
+                  class="max-w-full max-h-full object-contain"
+                />
+              </picture>
             </div>
           </div>
         </Transition>
@@ -329,20 +353,24 @@ async function copyToClipboard(text) {
 
       <!-- 菜品信息区 -->
       <div class="px-4 pt-4 pb-2" v-if="meal">
-        <div class="flex items-start justify-between mb-2">
+        <div class="flex items-start justify-between mb-3">
           <div class="flex-1 mr-4">
-            <h3 class="text-xl font-bold text-gray-800">{{ meal.dishName }}</h3>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-[10px] font-bold text-blue-700 px-2 py-0.5 bg-cyan-100 rounded-full">⚡ 能量+10</span>
+              <span class="text-[10px] font-bold text-blue-600">星际营养</span>
+            </div>
+            <h3 class="text-2xl font-bold dish-hero-title">{{ meal.dishName }}</h3>
           </div>
           <button
             @click="shareLink"
-            class="flex items-center gap-1 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 text-orange-600 rounded-full transition-colors text-sm font-medium"
-            :class="{ 'bg-green-50 text-green-600': shareSuccess }"
+            class="flex-shrink-0 flex items-center gap-1 px-4 py-2 active:scale-95 text-white rounded-full transition-all text-sm font-bold shadow-md border border-white"
+            :class="shareSuccess ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-600 hover:bg-blue-700'"
           >
             <svg v-if="!shareSuccess" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
             </svg>
             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
             </svg>
             <span>{{ shareSuccess ? '已复制' : '分享' }}</span>
           </button>
@@ -353,24 +381,27 @@ async function copyToClipboard(text) {
           <span
             v-for="tag in meal.tags"
             :key="tag"
-            class="text-xs bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full font-medium"
+            class="text-xs bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-medium"
           >
             {{ tag }}
           </span>
         </div>
 
-        <!-- 小贴士 - 美团公告栏风格 -->
-        <div class="bg-amber-50 rounded-lg px-4 py-3 mb-5 flex items-start gap-2">
-          <span class="text-sm flex-shrink-0 mt-0.5">💡</span>
-          <p class="text-sm text-amber-800 leading-relaxed">{{ meal.tips }}</p>
+        <!-- 小贴士 -->
+        <div class="relative bg-gradient-to-r from-cyan-50 to-blue-50 rounded-2xl px-4 py-3 mb-5 flex items-start gap-2 border border-gray-200 shadow-sm">
+          <span class="text-lg flex-shrink-0">💡</span>
+          <p class="text-sm text-blue-800 leading-relaxed font-medium">{{ meal.tips }}</p>
         </div>
       </div>
 
-      <!-- 分割标题 - 美团分段风格 -->
+      <!-- 食材清单 -->
       <div class="px-4 mb-3" v-if="meal">
         <div class="flex items-center gap-2">
-          <span class="text-lg">🥕</span>
-          <h4 class="text-base font-bold text-gray-800">食材清单</h4>
+          <div class="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center shadow-md shadow-cyan-200 border border-white">
+            <span class="text-base">🥕</span>
+          </div>
+          <h4 class="text-base font-bold text-blue-900">食材清单</h4>
+          <div class="flex-1 h-px bg-gradient-to-r from-cyan-300 to-transparent"></div>
         </div>
       </div>
 
@@ -379,7 +410,7 @@ async function copyToClipboard(text) {
           <span
             v-for="ingredient in meal.ingredients"
             :key="ingredient"
-            class="bg-gray-50 text-gray-700 text-sm px-3 py-1.5 rounded-lg border border-gray-100"
+            class="bg-white text-blue-700 text-sm px-3 py-1.5 rounded-xl border border-gray-200 font-medium shadow-sm hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 transition-all"
           >
             {{ ingredient }}
           </span>
@@ -389,37 +420,40 @@ async function copyToClipboard(text) {
       <!-- 步骤 -->
       <div class="px-4 mb-5" v-if="meal">
         <div class="flex items-center gap-2 mb-3">
-          <span class="text-lg">👩‍🍳</span>
-          <h4 class="text-base font-bold text-gray-800">做法步骤</h4>
+          <div class="w-7 h-7 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center shadow-md shadow-blue-200 border border-white">
+            <span class="text-base">👩‍🍳</span>
+          </div>
+          <h4 class="text-base font-bold text-blue-900">做法步骤</h4>
+          <div class="flex-1 h-px bg-gradient-to-r from-blue-300 to-transparent"></div>
         </div>
         <div class="space-y-3">
           <div
             v-for="(step, index) in meal.steps"
             :key="index"
-            class="flex gap-3 bg-gray-50 rounded-lg p-4"
+            class="flex gap-3 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all"
           >
             <span
-              class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-400 text-white text-xs flex items-center justify-center font-bold mt-0.5"
+              class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-white text-sm flex items-center justify-center font-bold mt-0.5 shadow-md shadow-cyan-200 border border-white"
             >
               {{ index + 1 }}
             </span>
-            <p class="text-sm text-gray-700 leading-relaxed">{{ step }}</p>
+            <p class="text-sm text-blue-900 leading-relaxed pt-1">{{ step }}</p>
           </div>
         </div>
       </div>
 
-      <!-- 参考链接 - 美团底部按钮风格 -->
+      <!-- 参考链接 -->
       <div v-if="meal?.referenceLink" class="px-4 mt-6">
         <a
           :href="meal.referenceLink"
           target="_blank"
           rel="noopener noreferrer"
           @click="handleReferenceClick"
-          class="flex items-center justify-center gap-2 w-full py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
+          class="flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 text-white text-sm font-bold rounded-2xl transition-all shadow-md border border-white"
         >
-          <span>查看小红书原文</span>
+          <span>🔗 查看小红书原文</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
           </svg>
         </a>
       </div>
@@ -437,29 +471,41 @@ async function copyToClipboard(text) {
       </div>
     </main>
 
-    <!-- 前一天 / 后一天 底部导航 - 美团底部操作栏风格 -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+    <!-- 悬浮返回主页按钮（FAB） -->
+    <button
+      @click="router.push('/')"
+      class="fixed right-4 bottom-20 z-30 w-12 h-12 rounded-full text-white flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg border-2 border-white"
+      style="background: linear-gradient(135deg, #06b6d4, #2563eb);"
+      title="回到主页"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+    </button>
+
+    <!-- 前一天 / 后一天 底部导航 -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-2px_15px_rgba(0,0,0,0.05)]">
       <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
         <button
           v-if="prevDay"
           @click="navigateTo(prevDay)"
-          class="flex items-center gap-1 text-gray-500 hover:text-orange-500 transition-colors text-sm"
+          class="flex items-center gap-1 px-3 py-1.5 text-blue-700 hover:bg-gray-50 active:scale-95 rounded-full transition-all text-sm font-bold border border-gray-200"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
           </svg>
           <span>{{ prevDay }}</span>
         </button>
         <div v-else></div>
-        <span class="text-xs text-gray-300">{{ day }}</span>
+        <span class="text-xs font-bold text-blue-600">⚡ {{ day }}</span>
         <button
           v-if="nextDay"
           @click="navigateTo(nextDay)"
-          class="flex items-center gap-1 text-gray-500 hover:text-orange-500 transition-colors text-sm"
+          class="flex items-center gap-1 px-4 py-1.5 text-white bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95 rounded-full transition-all text-sm font-bold shadow-md border border-white"
         >
           <span>{{ nextDay }}</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
           </svg>
         </button>
         <div v-else></div>
@@ -469,6 +515,28 @@ async function copyToClipboard(text) {
 </template>
 
 <style scoped>
+/* 顶部小标题 */
+.hero-mini-title {
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+  font-family: 'Comic Sans MS', 'Marker Felt', cursive, sans-serif;
+}
+
+/* 菜品大标题 */
+.dish-hero-title {
+  color: #1e3a8a;
+  letter-spacing: 0.02em;
+}
+
+/* 星星闪烁 */
+@keyframes twinkleMini {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.twinkle-mini {
+  animation: twinkleMini 2s infinite;
+}
+
 .fullscreen-enter-active,
 .fullscreen-leave-active {
   transition: opacity 0.3s ease;
